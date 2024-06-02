@@ -8,6 +8,7 @@ import threading
 from datetime import  datetime
 from notif import NotificationsPage
 from usersettings import  SettingsUI
+from userpage import PagesUI
 class UserMFeed(tk.Toplevel):
     def __init__(self, parent, username):
         super().__init__(parent)
@@ -27,6 +28,8 @@ class UserMFeed(tk.Toplevel):
         return connection
 
     def create_widgets(self):
+        style = ttk.Style()
+        style.theme_use("clam")
         main_frame = tk.Frame(self, bg='#f0f2f5')
         main_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -56,8 +59,9 @@ class UserMFeed(tk.Toplevel):
             ('Friends', self.go_friends),
             ('Notifications', self.go_notifications),
             ('Messages', self.go_messages),
+            ('Pages', self.go_pages),
             ('Settings', self.go_settings),
-            ('add friend', self.add_friend),
+
             ('Sidebar', self.toggle_sidebar)
         ]
 
@@ -264,6 +268,7 @@ class UserMFeed(tk.Toplevel):
         likes_label = tk.Label(action_frame, text=f'❤ {likes}', font=('Segoe UI', 10), fg='#3b5998', bg='#ffffff')
         likes_label.pack(side=tk.LEFT, padx=5)
 
+
         comments_label = tk.Label(action_frame, text=f'💬 {comments}', font=('Segoe UI', 10), fg='#3b5998', bg='#ffffff')
         comments_label.pack(side=tk.LEFT, padx=5)
 
@@ -273,12 +278,11 @@ class UserMFeed(tk.Toplevel):
         comments_section_frame = tk.Frame(post_frame, bg='#f0f2f5')
         comments_section_frame.pack_forget()  # Initially hide the comments section
 
-        comments_list = tk.Listbox(comments_section_frame, height=5, font=('Segoe UI', 10), bg='#f0f2f5')
+        comments_list = tk.Listbox(comments_section_frame, height=3, width=40, font=('Segoe UI', 10), bg='#f0f2f5')
         comments_list.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5, pady=5)
 
-        comment_entry = tk.Text(comments_section_frame, height=2, font=('Segoe UI', 10))
+        comment_entry = tk.Text(comments_section_frame, height=1, width=40, font=('Segoe UI', 10))
         comment_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-
         post_comment_button = tk.Button(comments_section_frame, text="Post", font=('Segoe UI', 10), fg='white',
                                         bg='#3b5998', activebackground='#4e69a2', activeforeground='white',
                                         relief=tk.FLAT,
@@ -352,6 +356,10 @@ class UserMFeed(tk.Toplevel):
                                   command=self.accept_friend_request)
         accept_button.pack(pady=10)
 
+        add_button = tk.Button(friends_frame, text="add new people", font=("Segoe UI", 12), bg="#3b5998",
+                                  fg="#ffffff",
+                                  command=self.add_friend)
+        add_button.pack(pady=10)
         friends_canvas = tk.Canvas(friends_frame, bg="#f0f2f5", highlightthickness=0)
         friends_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -465,7 +473,7 @@ class UserMFeed(tk.Toplevel):
     def add_friend(self):
         add_friend_window = tk.Toplevel(self)
         add_friend_window.title("Add Friend")
-        add_friend_window.geometry("400x500")
+        add_friend_window.geometry("550x500")
         add_friend_window.configure(bg="#f0f2f5")
 
         title_label = tk.Label(add_friend_window, text="Add Friend", font=("Segoe UI", 18, "bold"), bg="#f0f2f5",
@@ -605,6 +613,12 @@ class UserMFeed(tk.Toplevel):
 
         notifications_window = NotificationsPage(self, user_id)
         notifications_window.grab_set()
+    def go_pages(self):
+        user_id = self.get_user_id()
+        if user_id:
+            PagesUI(self)
+        else:
+            messagebox.showerror("Error", "Failed to get user ID.")
 
     def logout(self):
         self.destroy()

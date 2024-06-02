@@ -26,7 +26,7 @@ class UserPfP(tk.Toplevel):
             cursor = self.connection.cursor()
             cursor.execute("{CALL UserProfile(?)}", (username,))
             user_profile = cursor.fetchone()
-            print("User Profile:", user_profile)  # Debug print
+            print("User Profile:", user_profile)  #
             return user_profile
         except Exception as e:
             print("Error fetching user profile:", e)

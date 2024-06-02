@@ -1,0 +1,31 @@
+--CREATE PROCEDURE ViewPages
+--AS
+--BEGIN
+--    SELECT p.PageID, p.Title, p.Description, p.CreatedAt, u.Username AS CreatedBy
+--    FROM Pages p
+--    JOIN Users u ON p.CreatedBy = u.UserID;
+--END
+--GO
+--
+--CREATE PROCEDURE AddPageMember
+--    @PageID INT,
+--    @UserID INT,
+--    @Role NVARCHAR(50)
+--AS
+--BEGIN
+--    INSERT INTO PageMembers (PageID, UserID, Role)
+--    VALUES (@PageID, @UserID, @Role);
+--END
+--GO
+--
+--
+--CREATE PROCEDURE CreatePage
+--    @Title NVARCHAR(100),
+--    @Description NVARCHAR(1000),
+--    @CreatedBy INT
+--AS
+--BEGIN
+--    INSERT INTO Pages (Title, Description, CreatedAt, CreatedBy)
+--    VALUES (@Title, @Description, GETDATE(), @CreatedBy);
+--END
+--GO
