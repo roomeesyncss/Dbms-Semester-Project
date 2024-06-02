@@ -7,6 +7,7 @@ from usermsg import UserMessages
 import threading
 from datetime import  datetime
 from notif import NotificationsPage
+from usersettings import  SettingsUI
 class UserMFeed(tk.Toplevel):
     def __init__(self, parent, username):
         super().__init__(parent)
@@ -455,7 +456,11 @@ class UserMFeed(tk.Toplevel):
         UserMessages(self, self.username)
 
     def go_settings(self):
-        pass
+        user_id = self.get_user_id()
+        if user_id:
+            SettingsUI(self, user_id)
+        else:
+            messagebox.showerror("Error", "Failed to get user ID.")
 
     def add_friend(self):
         add_friend_window = tk.Toplevel(self)
