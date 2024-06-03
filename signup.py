@@ -25,7 +25,7 @@ class SignupPage(tk.Toplevel):
             try:
                 cursor = self.connection.cursor()
                 cursor.execute("""
-                    INSERT INTO Users (Username, Password, Email, IsAdmin)
+                    INSERT INTO [Users] (Username, Password, Email, IsAdmin)
                     OUTPUT INSERTED.UserID
                     VALUES (?, ?, ?, ?)
                 """, (username, password, email, is_admin))
@@ -38,7 +38,7 @@ class SignupPage(tk.Toplevel):
 
                 tk.messagebox.showinfo("Success", f"Registered Sucessful woho.")
                 self.withdraw()
-                query = "SELECT UserID, IsAdmin FROM Users WHERE Username = ? AND Password = ?"
+                query = "SELECT UserID, IsAdmin FROM [User] WHERE Username = ? AND Password = ?"
                 cursor = self.connection.cursor()
                 cursor.execute(query, (username, password))
                 signup_user_feed = UserMFeed(self.parent,username)
