@@ -20,7 +20,7 @@ class FacebookMainApp(tk.Tk):
     def log_user(self):
         username = self.username_entry.get()
         password = self.password_entry.get()
-        query = "SELECT UserID, IsAdmin FROM Users WHERE Username = ? AND Password = ?"
+        query = "SELECT UserID, IsAdmin FROM [Users] WHERE Username = ? AND Password = ?"
         cursor = self.connection.cursor()
         cursor.execute(query, (username, password))
         user = cursor.fetchone()
