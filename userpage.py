@@ -3,13 +3,12 @@ from tkinter import ttk, messagebox
 import pyodbc
 from dbcon import DatabaseConnection
 
-
 class PagesUI(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Manage Pages")
         self.geometry("700x500")
-        self.configure(bg='#ffffff')
+        self.configure(bg='#f8f9fa')
         self.db = DatabaseConnection()
         self.connection = self.db.create_connection()
 
@@ -22,16 +21,16 @@ class PagesUI(tk.Toplevel):
         style = ttk.Style()
         style.theme_use('clam')
 
-        style.configure("TNotebook", background='#fffff', foreground='white')
-        style.configure("TNotebook.Tab", background='#ffffff', font=('Segoe UI', 10, 'bold'), padding=[10, 5])
-        style.map("TNotebook.Tab", background=[("selected", "#3b5998")], foreground=[("selected", "white")])
+        style.configure("TNotebook", background='#f8f9fa')
+        style.configure("TNotebook.Tab", background='#f8f9fa', font=('Segoe UI', 10, 'bold'), padding=[10, 5])
+        style.map("TNotebook.Tab", background=[("selected", "#007bff")], foreground=[("selected", "#ffffff")])
 
-        style.configure("TLabel", background='#ffffff', font=('Segoe UI', 12))
+        style.configure("TLabel", background='#f8f9fa', font=('Segoe UI', 12))
         style.configure("TEntry", font=('Segoe UI', 12), padding=5)
-        style.configure("TButton", font=('Segoe UI', 12, 'bold'), background='#4267B2', foreground='white', padding=5)
-        style.map("TButton", background=[("active", "#365899")], foreground=[("active", "white")])
+        style.configure("TButton", font=('Segoe UI', 12, 'bold'), background='#007bff', foreground='#ffffff', padding=5)
+        style.map("TButton", background=[("active", "#0056b3")], foreground=[("active", "#ffffff")])
 
-        create_tab = ttk.Frame(nb)
+        create_tab = ttk.Frame(nb, style="TFrame")
         nb.add(create_tab, text="Create Page")
 
         ttk.Label(create_tab, text="Title:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
@@ -39,14 +38,13 @@ class PagesUI(tk.Toplevel):
         self.title_entry.grid(row=0, column=1, padx=10, pady=10)
 
         ttk.Label(create_tab, text="Description:").grid(row=1, column=0, padx=10, pady=10, sticky="nw")
-        self.desc_entry = tk.Text(create_tab, width=50, height=6, font=('Segoe UI', 12), wrap="word", bd=2,
-                                  relief="groove")
+        self.desc_entry = tk.Text(create_tab, width=50, height=6, font=('Segoe UI', 12), wrap="word", bd=2, relief="groove")
         self.desc_entry.grid(row=1, column=1, padx=10, pady=10)
 
         create_button = ttk.Button(create_tab, text="Create Page", command=self.create_page)
         create_button.grid(row=2, column=1, padx=10, pady=20, sticky="e")
 
-        member_tab = ttk.Frame(nb)
+        member_tab = ttk.Frame(nb, style="TFrame")
         nb.add(member_tab, text="Add Page Member")
 
         ttk.Label(member_tab, text="Page ID:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
@@ -64,7 +62,7 @@ class PagesUI(tk.Toplevel):
         add_member_button = ttk.Button(member_tab, text="Add Member", command=self.add_member)
         add_member_button.grid(row=3, column=1, padx=10, pady=20, sticky="e")
 
-        view_tab = ttk.Frame(nb)
+        view_tab = ttk.Frame(nb, style="TFrame")
         nb.add(view_tab, text="View Pages")
 
         self.pages_listbox = tk.Listbox(view_tab, font=('Segoe UI', 12), bd=2, relief="groove", bg='#ffffff')
@@ -84,8 +82,7 @@ class PagesUI(tk.Toplevel):
 
         try:
             with self.connection.cursor() as cursor:
-                cursor.execute("EXEC CreatePage @Title=?, @Description=?, @CreatedBy=?",
-                               (title, description, created_by))
+                cursor.execute("EXEC CreatePage @Title=?, @Description=?, @CreatedBy=?", (title, description, created_by))
                 self.connection.commit()
                 messagebox.showinfo("Success", "Page created successfully")
                 self.title_entry.delete(0, tk.END)
@@ -125,4 +122,3 @@ class PagesUI(tk.Toplevel):
                     self.pages_listbox.insert(tk.END, page_info)
         except pyodbc.Error as e:
             messagebox.showerror("Database Error", f"Failed to load pages: {e}")
-

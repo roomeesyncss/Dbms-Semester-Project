@@ -385,13 +385,15 @@ class UserMFeed(tk.Toplevel):
                                       command=lambda f=friend_name: remove_friend(f))
             remove_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
+
+
     def accept_friend_request(self):
         request_window = tk.Toplevel(self)
-        request_window.title("Accept Friend Request")
-        request_window.geometry("400x400")
+        request_window.title("Manage Friend Requests")
+        request_window.geometry("550x500")
         request_window.configure(bg="#f0f2f5")
 
-        title_label = tk.Label(request_window, text="Accept Friend Request", font=("Segoe UI", 18, "bold"),
+        title_label = tk.Label(request_window, text="Manage Friend Requests", font=("Segoe UI", 18, "bold"),
                                bg="#f0f2f5", fg="#3b5998")
         title_label.pack(pady=10)
 
@@ -412,53 +414,64 @@ class UserMFeed(tk.Toplevel):
             if not pending_requests:
                 no_requests_label = tk.Label(request_window, text="You have no pending friend requests.",
                                              font=("Segoe UI", 14), bg="#f0f2f5", fg="#3b5998")
-                no_requests_label.pack(pady=10)
+                no_requests_label.pack(pady=20)
                 return
 
-            pending_request_usernames = [request[0] for request in pending_requests]
-            selected_request = tk.StringVar(request_window)
-            selected_request.set(pending_request_usernames[0])
+            results_frame = tk.Frame(request_window, bg="#f0f2f5")
+            results_frame.pack(pady=10, fill=tk.BOTH, expand=True)
 
-            request_frame = tk.Frame(request_window, bg="#f0f2f5")
-            request_frame.pack(pady=10)
+            results_canvas = tk.Canvas(results_frame, bg="#f0f2f5", highlightthickness=0)
+            results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-            request_label = tk.Label(request_frame, text="Select the username to accept:", font=("Segoe UI", 14),
-                                     bg="#f0f2f5", fg="#3b5998")
-            request_label.pack(pady=5)
+            results_scrollbar = tk.Scrollbar(results_frame, orient=tk.VERTICAL, command=results_canvas.yview)
+            results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-            request_dropdown = tk.OptionMenu(request_frame, selected_request, *pending_request_usernames)
-            request_dropdown.config(font=("Segoe UI", 12), bg="#ffffff", activebackground="#3b5998",
-                                    activeforeground="#ffffff")
-            request_dropdown.pack(pady=5)
+            results_canvas.configure(yscrollcommand=results_scrollbar.set)
+            results_canvas.bind('<Configure>',
+                                lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all")))
 
-            accept_button = tk.Button(request_frame, text="Accept", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
-                                      command=lambda: accept_request(selected_request.get(), pending_requests,
-                                                                     request_window))
-            accept_button.pack(pady=10)
+            results_interior = tk.Frame(results_canvas, bg="#f0f2f5")
+            results_canvas.create_window((0, 0), window=results_interior, anchor="nw")
 
-        finally:
-            connection.close()
-
-        def accept_request(selected_username, pending_requests, request_window):
-            friendship_id = None
-            for request in pending_requests:
-                if request[0] == selected_username:
-                    friendship_id = request[1]
-                    break
-
-            if friendship_id:
+            def update_request_status(friendship_id, username, status):
                 connection = self.create_database_connection()
                 try:
                     with connection.cursor() as cursor:
-                        cursor.execute("UPDATE Friendships SET Status = 'Accepted' WHERE FriendshipID = ?",
-                                       (friendship_id,))
+                        cursor.execute("UPDATE Friendships SET Status = ? WHERE FriendshipID = ?",
+                                       (status, friendship_id))
                         connection.commit()
-                        tk.messagebox.showinfo("Success", f"You are now friends with {selected_username}.")
+                        messagebox.showinfo("Success", f"Friend request {status.lower()}ed for {username}.")
                 finally:
                     connection.close()
                 request_window.destroy()
-            else:
-                tk.messagebox.showerror("Error", "Invalid username selected.")
+                self.accept_friend_request()
+
+            for username, friendship_id in pending_requests:
+                card_frame = tk.Frame(results_interior, bg="#ffffff", relief=tk.RAISED, borderwidth=1)
+                card_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+                user_label = tk.Label(card_frame, text=username, font=("Segoe UI", 14), bg="#ffffff", fg="#3b5998")
+                user_label.pack(side=tk.LEFT, padx=10, pady=10)
+
+                button_frame = tk.Frame(card_frame, bg="#ffffff")
+                button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+                accept_button = tk.Button(button_frame, text="Accept", font=("Segoe UI", 12), bg="#3b5998",
+                                          fg="#ffffff",
+                                          command=lambda fid=friendship_id, uname=username: update_request_status(fid,
+                                                                                                                  uname,
+                                                                                                                  'Accepted'))
+                accept_button.pack(side=tk.LEFT, padx=5)
+
+                reject_button = tk.Button(button_frame, text="Reject", font=("Segoe UI", 12), bg="#ff4d4d",
+                                          fg="#ffffff",
+                                          command=lambda fid=friendship_id, uname=username: update_request_status(fid,
+                                                                                                                  uname,
+                                                                                                                  'Rejected'))
+                reject_button.pack(side=tk.LEFT, padx=5)
+
+        finally:
+            connection.close()
 
     def go_messages(self):
         UserMessages(self, self.username)
