@@ -1,4 +1,4 @@
--- -------- Chat QUERIES END -------------
+-- -------- Chat QUERIES Start -------------
 -- SEND MESSAGE -------
 CREATE PROCEDURE SendMessage
     @SenderID INT,
@@ -18,11 +18,9 @@ BEGIN
         RETURN;
     END
 
-    -- Check if a chat between sender and receiver already exists
     DECLARE @ChatID INT;
     SELECT @ChatID = ChatID FROM Chat WHERE (SenderID = @SenderID AND ReceiverID = @ReceiverID) OR (SenderID = @ReceiverID AND ReceiverID = @SenderID);
 
-    -- If chat does not exist, create a new chat
     IF @ChatID IS NULL
     BEGIN
         INSERT INTO Chat (SenderID, ReceiverID)
@@ -30,8 +28,7 @@ BEGIN
         SET @ChatID = SCOPE_IDENTITY();
     END
 
-    -- Insert the message into Messages table with the respective ChatID
-    INSERT INTO Messages (ChatID, UserID, Content)
+    INSERT INTO Message (ChatID, UserID, Content)
     VALUES (@ChatID, @SenderID, @Content);
 
     IF @@ROWCOUNT > 0
@@ -40,8 +37,7 @@ BEGIN
         PRINT 'Failed to send message.';
 END;
 
-
-EXEC SendMessage @SenderID = 4, @ReceiverID = 3, @Content = 'hii'
+EXEC SendMessage @SenderID = 1, @ReceiverID = 2, @Content = 'hii'
 
 -- Get Chat And Messages -----
 ALTER PROCEDURE GetChatMessages
@@ -73,8 +69,8 @@ BEGIN
         RETURN;
     END
 
-    SELECT m.MessageID, m.ChatID, m.UserID, u.UserName, m.Content
-    FROM Messages m
+    SELECT m.MessageID, m.ChatID, m.UserID, u.UserName, m.Content, m.createdAt
+    FROM Message m
     JOIN [User] u ON m.UserID = u.UserID
     WHERE m.ChatID = @ChatID
     ORDER BY m.MessageID;
@@ -82,4 +78,33 @@ BEGIN
     PRINT 'Chat messages retrieved successfully.';
 END;
 
-EXEC GetChatMessages @UserID = 3, @UserToChatID = 4;
+EXEC GetChatMessages @UserID = 1, @UserToChatID = 2;
+
+-- ---Get All Chats Of A User ----
+CREATE PROCEDURE GetAllChatsOfUser
+    @UserID INT
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM [User] WHERE UserID = @UserID)
+    BEGIN
+        PRINT 'Error: User does not exist.';
+        RETURN;
+    END
+
+    SELECT DISTINCT c.ChatID, 
+                    CASE 
+                        WHEN c.SenderID = @UserID THEN c.ReceiverID 
+                        ELSE c.SenderID 
+                    END AS OtherUserID,
+                    u.UserName AS OtherUserName
+    FROM Chat c
+    JOIN [User] u ON u.UserID = CASE 
+                                    WHEN c.SenderID = @UserID THEN c.ReceiverID 
+                                    ELSE c.SenderID 
+                                END
+    WHERE c.SenderID = @UserID OR c.ReceiverID = @UserID;
+END;
+
+EXEC GetAllChatsOfUser @UserID = 1;
+
+-- -------- Chat QUERIES End -------------
