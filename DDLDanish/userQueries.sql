@@ -3,32 +3,59 @@ INSERT INTO [User] (Username, FullName, Email, Password)
 VALUES ('Rooma', 'Rooma Siddiqui', 'rooma@gmail.com', 'Abc12345%');
 
 --Updating the user
-CREATE PROCEDURE UpdateUser
+--CREATE PROCEDURE UpdateUser
+--    @UserID INT,
+--    @Username NVARCHAR(50),
+--    @FullName NVARCHAR(100),
+--    @Email VARCHAR(100),
+--    @Password VARCHAR(100),
+--    @Country VARCHAR(100),
+--    @Phone NUMERIC
+--AS
+--BEGIN
+--    UPDATE [User]
+--    SET Username = @Username,
+--        FullName = @FullName,
+--        Email = @Email,
+--        Password = @Password,
+--        Country = @Country,
+--        Phone = @Phone
+--    WHERE UserID = @UserID;
+--
+--    IF @@ROWCOUNT > 0
+--        PRINT 'User updated successfully.';
+--    ELSE
+--        PRINT 'User not found.';
+--END;
+
+--EXEC UpdateUser @UserID = '4', @Username = 'rooma', @FullName = 'Rooma Siddiqui', @Email = 'roomasiddiqui2003', @Password = 'Abc12345%', @Country = 'Pakistan', @Phone = '0023424234'
+
+CREATE PROCEDURE UserProfileById
+    @UserID INT
+AS
+BEGIN
+    SELECT UserID, Username, Email, FullName, isAdmin, CreatedAt, Country, Phone
+    FROM [User]
+    WHERE UserID = @UserID;
+END
+GO
+
+CREATE PROCEDURE UpdateUserProfile
     @UserID INT,
-    @Username NVARCHAR(50),
-    @FullName NVARCHAR(100),
     @Email VARCHAR(100),
-    @Password VARCHAR(100),
+    @FullName NVARCHAR(100),
     @Country VARCHAR(100),
     @Phone NUMERIC
 AS
 BEGIN
     UPDATE [User]
-    SET Username = @Username,
+    SET Email = @Email,
         FullName = @FullName,
-        Email = @Email,
-        Password = @Password,
         Country = @Country,
         Phone = @Phone
     WHERE UserID = @UserID;
-
-    IF @@ROWCOUNT > 0
-        PRINT 'User updated successfully.';
-    ELSE
-        PRINT 'User not found.';
-END;
-
---EXEC UpdateUser @UserID = '4', @Username = 'rooma', @FullName = 'Rooma Siddiqui', @Email = 'roomasiddiqui2003', @Password = 'Abc12345%', @Country = 'Pakistan', @Phone = '0023424234'
+END
+GO
 
 --Deleting the user
 CREATE PROCEDURE DeleteUser

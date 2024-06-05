@@ -67,9 +67,9 @@ BEGIN
 END;
 
 -- Get all posts
-CREATE VIEW GetAllPosts 
+CREATE VIEW GetAllPosts
 AS
-SELECT 
+SELECT
     p.PostID,
     p.AuthorID,
     u.Username AS AuthorUsername,
@@ -263,14 +263,14 @@ EXEC DeleteComment @CommentID = 2;
 -- -------- COMMENT QUERIES END -------------
 
 
-ALTER PROCEDURE DeleteUserPost
-    @PostID INT
-AS
-BEGIN
-    DELETE FROM Post
-    WHERE PostID = @PostID;
-END;
-GO
+--ALTER PROCEDURE DeleteUserPost
+--    @PostID INT
+--AS
+--BEGIN
+--    DELETE FROM Post
+--    WHERE PostID = @PostID;
+--END;
+--GO
 
 
 CREATE PROCEDURE DeletePost
@@ -359,3 +359,16 @@ BEGIN
     INNER JOIN [User] u ON c.UserID = u.UserID
     WHERE c.PostID = @PostID;
 END;
+
+
+
+CREATE PROCEDURE UpdateUserPost
+    @PostID INT,
+    @Content NVARCHAR(MAX)
+AS
+BEGIN
+    UPDATE Posts
+    SET Content = @Content
+    WHERE PostID = @PostID;
+END;
+GO

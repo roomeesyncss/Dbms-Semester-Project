@@ -10,6 +10,50 @@ CREATE TABLE [User] (
     isAdmin BIT DEFAULT 0 NOT NULL
 );
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 CREATE TABLE Admins (
     AdminID INT PRIMARY KEY IDENTITY(1,1),
     UserID INT UNIQUE NOT NULL,
@@ -107,6 +151,8 @@ CREATE TABLE Messages (
     FOREIGN KEY (ChatID) REFERENCES Chats(ChatID) ON DELETE NO ACTION ON UPDATE NO ACTION,
     FOREIGN KEY (SenderID) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
+ALTER TABLE Messages
+ADD Read BIT DEFAULT 0 NOT NULL;
 
 
 --CREATE TABLE Reports (

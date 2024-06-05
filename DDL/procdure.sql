@@ -97,6 +97,9 @@ END
 
 
 
+--for admin only
+
+
 CREATE PROCEDURE deleteUser
 @UserID int
 AS

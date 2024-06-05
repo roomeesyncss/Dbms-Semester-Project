@@ -20,7 +20,7 @@ class UserMFeed(tk.Toplevel):
         self.sidebar_frame.pack_forget()
 
     def create_database_connection(self):
-        server_name = 'localhost\\SQLEXPRESS'
+        server_name = 'localhost\\SQLEXPRESS01'
         database_name = 'Facebook'
         trusted_connection = 'yes'
         connection_string = f'DRIVER={{SQL Server}};SERVER={server_name};DATABASE={database_name};Trusted_Connection={trusted_connection};'
@@ -109,10 +109,11 @@ class UserMFeed(tk.Toplevel):
 
     def load_posts(self):
         connection = self.create_database_connection()
+        user_id = self.get_user_id()
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute("EXEC GetUserPosts @Username = ?", (self.username,))
+                cursor.execute("EXEC GetUserPosts @UserID = ?", (user_id,))
                 posts = cursor.fetchall()
         finally:
             connection.close()
@@ -141,6 +142,32 @@ class UserMFeed(tk.Toplevel):
 
         action_frame = tk.Frame(post_frame, bg='#ffffff')
         action_frame.pack(fill=tk.X, pady=10)
+        def comment_post(post_id):
+            user_id = self.get_user_id()
+
+            comment_content = comment_entry.get("1.0", tk.END).strip()
+            if not comment_content:
+                messagebox.showerror("Error", "Comment content cannot be empty.")
+                return
+
+            if not user_id:
+                messagebox.showerror("Error", "Failed to fetch user ID.")
+                return
+
+            connection = self.create_database_connection()
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("EXEC AddCommentToPost @PostID = ?, @UserID = ?, @Content = ?",
+                                   (post_id, user_id, comment_content))
+                    connection.commit()
+
+                comment_entry.delete("1.0", tk.END)
+                load_comments(post_id)
+                messagebox.showinfo("Success", "Comment posted successfully!")
+            except pyodbc.Error as e:
+                messagebox.showerror("Database Error", f"Failed to post comment: {e}")
+            finally:
+                connection.close()
 
         def share_post(post_id):
             user_id = self.get_user_id()
@@ -152,7 +179,7 @@ class UserMFeed(tk.Toplevel):
             try:
                 with connection.cursor() as cursor:
                     cursor.execute("""
-                        EXEC SharePost2 @PostID = ?, @UserID = ?
+                        EXEC SharePost212 @PostID = ?, @UserID = ?
                     """, (post_id, user_id))
                     updated_share_count = cursor.fetchone()[0]
                     shares_label.config(text=f'🔄 {updated_share_count}')
@@ -166,9 +193,11 @@ class UserMFeed(tk.Toplevel):
 
         def toggle_like_in_background(post_id, likes_label):
             connection = self.create_database_connection()
+            user_id = self.get_user_id()
+
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("EXEC ToggleLikePost @Username = ?, @PostID = ?", (username, post_id))
+                    cursor.execute("EXEC ToggleLikePost @UserId= ?, @PostID = ?", (user_id, post_id))
                     result = cursor.fetchone()
                     if result:
                         like_count = result[0]
@@ -183,63 +212,26 @@ class UserMFeed(tk.Toplevel):
 
         def like_post(post_id, likes_label):
             threading.Thread(target=toggle_like_in_background, args=(post_id, likes_label)).start()
+
         def load_comments(post_id):
             comments_list.delete(0, tk.END)
             connection = self.create_database_connection()
             if connection:
                 try:
                     with connection.cursor() as cursor:
-                        cursor.execute("""
-                            SELECT u.Username, c.Content, c.Timestamp
-                            FROM Comments c
-                            JOIN Users u ON c.UserID = u.UserID
-                            WHERE c.PostID = ?
-                            ORDER BY c.Timestamp DESC
-                        """, (post_id,))
-                        cmt = cursor.fetchall()
+                        cursor.execute("EXEC GetCommentsForPost @PostID = ?", (post_id,))
+                        comments = cursor.fetchall()
+                        print("Fetched Comments:", comments)  # Debugging line
 
-                        for comment in cmt:
-                            username, content, timestamp = comment
-                            try:
-                                formatted_time = datetime.strptime(str(timestamp), '%Y-%m-%d %H:%M:%S.%f').strftime(
-                                    '%Y-%m-%d %H:%M')
-                            except ValueError:
-                                formatted_time = datetime.strptime(str(timestamp), '%Y-%m-%d %H:%M:%S').strftime(
-                                    '%Y-%m-%d %H:%M')
+                        for comment in comments:
+                            comment_id, content, created_at, user_id, username = comment
+                            formatted_time = created_at.strftime('%Y-%m-%d %H:%M')
                             comments_list.insert(tk.END, f"{username} ({formatted_time}): {content}")
 
                 except pyodbc.Error as e:
                     messagebox.showerror("Database Error", f"Failed to load comments: {e}")
                 finally:
                     connection.close()
-
-        def comment_post(post_id):
-            comment_content = comment_entry.get("1.0", tk.END).strip()
-            if not comment_content:
-                messagebox.showerror("Error", "Comment content cannot be empty.")
-                return
-
-            user_id = self.get_user_id()
-            if not user_id:
-                messagebox.showerror("Error", "Failed to fetch user ID.")
-                return
-
-            connection = self.create_database_connection()
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute("""
-                        INSERT INTO Comments (PostID, UserID, Content, Timestamp)
-                        VALUES (?, ?, ?, ?)
-                    """, (post_id, user_id, comment_content, datetime.now()))
-                    connection.commit()
-
-                comment_entry.delete("1.0", tk.END)
-                load_comments(post_id)
-                messagebox.showinfo("Success", "Comment posted successfully!")
-            except pyodbc.Error as e:
-                messagebox.showerror("Database Error", f"Failed to post comment: {e}")
-            finally:
-                connection.close()
 
         def open_cmt():
             if comments_section_frame.winfo_viewable():
@@ -299,27 +291,21 @@ class UserMFeed(tk.Toplevel):
         pass
 
     def go_profile(self):
-        profile_window = UserPfP(self, username=self.username)
+        user_id = self.get_user_id()
+
+        profile_window = UserPfP(self, user_id)
         profile_window.grab_set()
 
     def go_friends(self):
         connection = self.create_database_connection()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT UserID FROM Users WHERE Username = ?", (self.username,))
-                user_id = cursor.fetchone()[0]
+                user_id = self.get_user_id()
 
+                # Fetch friends using the GetFriends stored procedure
                 cursor.execute("""
-                     SELECT Users.Username
-                     FROM Friendships
-                     INNER JOIN Users ON Friendships.UserID2 = Users.UserID
-                     WHERE Friendships.UserID1 = ? AND Friendships.Status = 'Accepted'
-                     UNION
-                     SELECT Users.Username
-                     FROM Friendships
-                     INNER JOIN Users ON Friendships.UserID1 = Users.UserID
-                     WHERE Friendships.UserID2 = ? AND Friendships.Status = 'Accepted'
-                 """, (user_id, user_id))
+                    EXEC GetFriends @UserID = ?
+                """, (user_id,))
                 friends = cursor.fetchall()
         finally:
             connection.close()
@@ -328,10 +314,10 @@ class UserMFeed(tk.Toplevel):
             connection = self.create_database_connection()
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT UserID FROM Users WHERE Username = ?", (friend_name,))
-                    friend_id = cursor.fetchone()[0]
-
-                    cursor.execute("DELETE FROM Friendships WHERE UserID1 = ? AND UserID2 = ?", (user_id, friend_id))
+                    friend_id = self.get_user_id_by_username(friend_name)
+                    cursor.execute(
+                        "DELETE FROM Friendships WHERE (UserID1 = ? AND UserID2 = ?) OR (UserID1 = ? AND UserID2 = ?)",
+                        (user_id, friend_id, friend_id, user_id))
                     connection.commit()
             finally:
                 connection.close()
@@ -339,7 +325,7 @@ class UserMFeed(tk.Toplevel):
             friends_dialog.destroy()
             self.go_friends()
 
-        friends_dialog = tk.Toplevel(self)
+        friends_dialog = tk.Toplevel(self.master)
         friends_dialog.title("Friends")
         friends_dialog.geometry("600x500")
         friends_dialog.configure(bg="#f0f2f5")
@@ -351,15 +337,14 @@ class UserMFeed(tk.Toplevel):
                                fg="#3b5998")
         title_label.pack(pady=10)
 
-        accept_button = tk.Button(friends_frame, text="Seee your Friend Request", font=("Segoe UI", 12), bg="#3b5998",
-                                  fg="#ffffff",
-                                  command=self.accept_friend_request)
+        accept_button = tk.Button(friends_frame, text="See your Friend Requests", font=("Segoe UI", 12), bg="#3b5998",
+                                  fg="#ffffff", command=self.accept_friend_request)
         accept_button.pack(pady=10)
 
-        add_button = tk.Button(friends_frame, text="add new people", font=("Segoe UI", 12), bg="#3b5998",
-                                  fg="#ffffff",
-                                  command=self.add_friend)
+        add_button = tk.Button(friends_frame, text="Add new people", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                               command=self.add_friend)
         add_button.pack(pady=10)
+
         friends_canvas = tk.Canvas(friends_frame, bg="#f0f2f5", highlightthickness=0)
         friends_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -385,10 +370,8 @@ class UserMFeed(tk.Toplevel):
                                       command=lambda f=friend_name: remove_friend(f))
             remove_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
-
-
     def accept_friend_request(self):
-        request_window = tk.Toplevel(self)
+        request_window = tk.Toplevel(self.master)
         request_window.title("Manage Friend Requests")
         request_window.geometry("550x500")
         request_window.configure(bg="#f0f2f5")
@@ -400,91 +383,73 @@ class UserMFeed(tk.Toplevel):
         connection = self.create_database_connection()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT UserID FROM Users WHERE Username = ?", (self.username,))
-                user_id = cursor.fetchone()[0]
+                user_id = self.get_user_id()
 
                 cursor.execute("""
-                    SELECT Users.Username, Friendships.FriendshipID
-                    FROM Friendships
-                    INNER JOIN Users ON Friendships.UserID1 = Users.UserID
-                    WHERE Friendships.UserID2 = ? AND Friendships.Status = 'Pending'
+                    EXEC GetPendingFriendRequests @UserID = ?
                 """, (user_id,))
                 pending_requests = cursor.fetchall()
-
-            if not pending_requests:
-                no_requests_label = tk.Label(request_window, text="You have no pending friend requests.",
-                                             font=("Segoe UI", 14), bg="#f0f2f5", fg="#3b5998")
-                no_requests_label.pack(pady=20)
-                return
-
-            results_frame = tk.Frame(request_window, bg="#f0f2f5")
-            results_frame.pack(pady=10, fill=tk.BOTH, expand=True)
-
-            results_canvas = tk.Canvas(results_frame, bg="#f0f2f5", highlightthickness=0)
-            results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-            results_scrollbar = tk.Scrollbar(results_frame, orient=tk.VERTICAL, command=results_canvas.yview)
-            results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-            results_canvas.configure(yscrollcommand=results_scrollbar.set)
-            results_canvas.bind('<Configure>',
-                                lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all")))
-
-            results_interior = tk.Frame(results_canvas, bg="#f0f2f5")
-            results_canvas.create_window((0, 0), window=results_interior, anchor="nw")
-
-            def update_request_status(friendship_id, username, status):
-                connection = self.create_database_connection()
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("UPDATE Friendships SET Status = ? WHERE FriendshipID = ?",
-                                       (status, friendship_id))
-                        connection.commit()
-                        messagebox.showinfo("Success", f"Friend request {status.lower()}ed for {username}.")
-                finally:
-                    connection.close()
-                request_window.destroy()
-                self.accept_friend_request()
-
-            for username, friendship_id in pending_requests:
-                card_frame = tk.Frame(results_interior, bg="#ffffff", relief=tk.RAISED, borderwidth=1)
-                card_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
-
-                user_label = tk.Label(card_frame, text=username, font=("Segoe UI", 14), bg="#ffffff", fg="#3b5998")
-                user_label.pack(side=tk.LEFT, padx=10, pady=10)
-
-                button_frame = tk.Frame(card_frame, bg="#ffffff")
-                button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
-
-                accept_button = tk.Button(button_frame, text="Accept", font=("Segoe UI", 12), bg="#3b5998",
-                                          fg="#ffffff",
-                                          command=lambda fid=friendship_id, uname=username: update_request_status(fid,
-                                                                                                                  uname,
-                                                                                                                  'Accepted'))
-                accept_button.pack(side=tk.LEFT, padx=5)
-
-                reject_button = tk.Button(button_frame, text="Reject", font=("Segoe UI", 12), bg="#ff4d4d",
-                                          fg="#ffffff",
-                                          command=lambda fid=friendship_id, uname=username: update_request_status(fid,
-                                                                                                                  uname,
-                                                                                                                  'Rejected'))
-                reject_button.pack(side=tk.LEFT, padx=5)
-
         finally:
             connection.close()
 
-    def go_messages(self):
-        UserMessages(self, self.username)
+        if not pending_requests:
+            no_requests_label = tk.Label(request_window, text="You have no pending friend requests.",
+                                         font=("Segoe UI", 14), bg="#f0f2f5", fg="#3b5998")
+            no_requests_label.pack(pady=20)
+            return
 
-    def go_settings(self):
-        user_id = self.get_user_id()
-        if user_id:
-            SettingsUI(self, user_id)
-        else:
-            messagebox.showerror("Error", "Failed to get user ID.")
+        results_frame = tk.Frame(request_window, bg="#f0f2f5")
+        results_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        results_canvas = tk.Canvas(results_frame, bg="#f0f2f5", highlightthickness=0)
+        results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        results_scrollbar = tk.Scrollbar(results_frame, orient=tk.VERTICAL, command=results_canvas.yview)
+        results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        results_canvas.configure(yscrollcommand=results_scrollbar.set)
+        results_canvas.bind('<Configure>', lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all")))
+
+        results_interior = tk.Frame(results_canvas, bg="#f0f2f5")
+        results_canvas.create_window((0, 0), window=results_interior, anchor="nw")
+
+        def update_request_status(friendship_id, username, status):
+            connection = self.create_database_connection()
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("EXEC RespondToFriendRequest @SenderUserID = ?, @ReceiverUserID = ?, @Response = ?",
+                                   (friendship_id, user_id, status))
+                    connection.commit()
+                    messagebox.showinfo("Success", f"Friend request {status.lower()}ed for {username}.")
+            finally:
+                connection.close()
+            request_window.destroy()
+            self.accept_friend_request()
+
+        for username, friendship_id in pending_requests:
+            card_frame = tk.Frame(results_interior, bg="#ffffff", relief=tk.RAISED, borderwidth=1)
+            card_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+            user_label = tk.Label(card_frame, text=username, font=("Segoe UI", 14), bg="#ffffff", fg="#3b5998")
+            user_label.pack(side=tk.LEFT, padx=10, pady=10)
+
+            button_frame = tk.Frame(card_frame, bg="#ffffff")
+            button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+            accept_button = tk.Button(button_frame, text="Accept", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                                      command=lambda fid=friendship_id, uname=username: update_request_status(fid,
+                                                                                                              uname,
+                                                                                                              'Accepted'))
+            accept_button.pack(side=tk.LEFT, padx=5)
+
+            reject_button = tk.Button(button_frame, text="Reject", font=("Segoe UI", 12), bg="#ff4d4d", fg="#ffffff",
+                                      command=lambda fid=friendship_id, uname=username: update_request_status(fid,
+                                                                                                              uname,
+                                                                                                              'Rejected'))
+            reject_button.pack(side=tk.LEFT, padx=5)
 
     def add_friend(self):
-        add_friend_window = tk.Toplevel(self)
+        add_friend_window = tk.Toplevel(self.master)
         add_friend_window.title("Add Friend")
         add_friend_window.geometry("550x500")
         add_friend_window.configure(bg="#f0f2f5")
@@ -529,18 +494,8 @@ class UserMFeed(tk.Toplevel):
                     user_id = self.get_user_id()
 
                     cursor.execute("""
-                        SELECT Users.Username
-                        FROM Users
-                        WHERE Users.UserID NOT IN (
-                            SELECT UserID2
-                            FROM Friendships
-                            WHERE UserID1 = ?
-                            UNION
-                            SELECT UserID1
-                            FROM Friendships
-                            WHERE UserID2 = ?
-                        ) AND Users.Username LIKE ?
-                    """, (user_id, user_id, f"%{query}%"))
+                        EXEC SearchUsers @UserID = ?, @Query = ?
+                    """, (user_id, query))
                     users = cursor.fetchall()
             finally:
                 connection.close()
@@ -569,26 +524,38 @@ class UserMFeed(tk.Toplevel):
             connection = self.create_database_connection()
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT UserID FROM Users WHERE Username = ?", (friend_username,))
-                    friend_id = cursor.fetchone()
+                    friend_id = self.get_user_id_by_username(friend_username)
                     if friend_id:
                         cursor.execute("INSERT INTO Friendships (UserID1, UserID2, Status) VALUES (?, ?, 'Pending')",
-                                       (self.get_user_id(), friend_id[0]))
+                                       (self.get_user_id(), friend_id))
                         connection.commit()
-                        tk.messagebox.showinfo("Success", f"Friend request sent to {friend_username}.")
+                        messagebox.showinfo("Success", f"Friend request sent to {friend_username}.")
                     else:
-                        tk.messagebox.showerror("Error", f"User '{friend_username}' not found.")
+                        messagebox.showerror("Error", f"User '{friend_username}' not found.")
             finally:
                 connection.close()
 
             search_entry.delete(0, tk.END)
             search_users("")
 
+    def get_user_id_by_username(self, username):
+        connection = self.create_database_connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT UserID FROM [User] WHERE Username = ?", (username,))
+                user_id = cursor.fetchone()
+                if user_id:
+                    return user_id[0]
+                else:
+                    return None
+        finally:
+            connection.close()
+
     def get_user_id(self):
         connection = self.create_database_connection()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT UserID FROM Users WHERE Username = ?", (self.username,))
+                cursor.execute("SELECT UserID FROM [User] WHERE Username = ?", (self.username,))
                 result = cursor.fetchone()
                 if result:
                     user_id = result[0]
@@ -603,17 +570,342 @@ class UserMFeed(tk.Toplevel):
             connection.close()
         return user_id
 
+    def go_messages(self):
+        UserMessages(self, self.username)
+
+    def go_settings(self):
+        user_id = self.get_user_id()
+        if user_id:
+            SettingsUI(self, user_id)
+        else:
+            messagebox.showerror("Error", "Failed to get user ID.")
+
+    def go_friends(self):
+        connection = self.create_database_connection()
+        try:
+            with connection.cursor() as cursor:
+                user_id = self.get_user_id()
+
+                # First part of the UNION query
+                cursor.execute("""
+                      SELECT Username
+                      FROM Friendships
+                      INNER JOIN [User] ON Friendships.UserID2 = [User].UserID
+                      WHERE Friendships.UserID1 = ? AND Friendships.Status = 'Accepted'
+                  """, (user_id,))
+                friends_part1 = cursor.fetchall()
+
+                # Second part of the UNION query
+                cursor.execute("""
+                      SELECT Username
+                      FROM Friendships
+                      INNER JOIN [User] ON Friendships.UserID1 = [User].UserID
+                      WHERE Friendships.UserID2 = ? AND Friendships.Status = 'Accepted'
+                  """, (user_id,))
+                friends_part2 = cursor.fetchall()
+
+                # Combine the results
+                friends = friends_part1 + friends_part2
+        finally:
+            connection.close()
+
+        def remove_friend(friend_name):
+            connection = self.create_database_connection()
+            try:
+                with connection.cursor() as cursor:
+                    friend_id = self.get_user_id_by_username(friend_name)
+                    cursor.execute(
+                        "DELETE FROM Friendships WHERE (UserID1 = ? AND UserID2 = ?) OR (UserID1 = ? AND UserID2 = ?)",
+                        (user_id, friend_id, friend_id, user_id))
+                    connection.commit()
+            finally:
+                connection.close()
+
+            friends_dialog.destroy()
+            self.go_friends()
+
+        friends_dialog = tk.Toplevel(self.master)
+        friends_dialog.title("Friends")
+        friends_dialog.geometry("600x500")
+        friends_dialog.configure(bg="#f0f2f5")
+
+        friends_frame = tk.Frame(friends_dialog, bg="#f0f2f5")
+        friends_frame.pack(padx=20, pady=20)
+
+        title_label = tk.Label(friends_frame, text="Your Friends", font=("Segoe UI", 20, "bold"), bg="#f0f2f5",
+                               fg="#3b5998")
+        title_label.pack(pady=10)
+
+        accept_button = tk.Button(friends_frame, text="See your Friend Requests", font=("Segoe UI", 12), bg="#3b5998",
+                                  fg="#ffffff", command=self.accept_friend_request)
+        accept_button.pack(pady=10)
+
+        add_button = tk.Button(friends_frame, text="Add new people", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                               command=self.add_friend)
+        add_button.pack(pady=10)
+
+        friends_canvas = tk.Canvas(friends_frame, bg="#f0f2f5", highlightthickness=0)
+        friends_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        friends_scrollbar = tk.Scrollbar(friends_frame, orient=tk.VERTICAL, command=friends_canvas.yview)
+        friends_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        friends_canvas.configure(yscrollcommand=friends_scrollbar.set)
+        friends_canvas.bind('<Configure>', lambda e: friends_canvas.configure(scrollregion=friends_canvas.bbox("all")))
+
+        friends_interior = tk.Frame(friends_canvas, bg="#f0f2f5")
+        friends_canvas.create_window((0, 0), window=friends_interior, anchor="nw")
+
+        for friend in friends:
+            friend_name = friend[0]
+            friend_frame = tk.Frame(friends_interior, bg="#ffffff", relief=tk.RAISED, borderwidth=1)
+            friend_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+            friend_name_label = tk.Label(friend_frame, text=friend_name, font=("Segoe UI", 14), bg="#ffffff",
+                                         fg="#3b5998")
+            friend_name_label.pack(side=tk.LEFT, padx=10, pady=10)
+
+            remove_button = tk.Button(friend_frame, text="Remove", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                                      command=lambda f=friend_name: remove_friend(f))
+            remove_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
+    def accept_friend_request(self):
+        request_window = tk.Toplevel(self.master)
+        request_window.title("Manage Friend Requests")
+        request_window.geometry("550x500")
+        request_window.configure(bg="#f0f2f5")
+
+        title_label = tk.Label(request_window, text="Manage Friend Requests", font=("Segoe UI", 18, "bold"),
+                               bg="#f0f2f5", fg="#3b5998")
+        title_label.pack(pady=10)
+
+        connection = self.create_database_connection()
+        try:
+            with connection.cursor() as cursor:
+                user_id = self.get_user_id()
+
+                cursor.execute("""
+                      SELECT [User].Username, Friendships.FriendshipID
+                      FROM Friendships
+                      INNER JOIN [User] ON Friendships.UserID1 = [User].UserID
+                      WHERE Friendships.UserID2 = ? AND Friendships.Status = 'Pending'
+                  """, (user_id,))
+                pending_requests = cursor.fetchall()
+        finally:
+            connection.close()
+
+        if not pending_requests:
+            no_requests_label = tk.Label(request_window, text="You have no pending friend requests.",
+                                         font=("Segoe UI", 14), bg="#f0f2f5", fg="#3b5998")
+            no_requests_label.pack(pady=20)
+            return
+
+        results_frame = tk.Frame(request_window, bg="#f0f2f5")
+        results_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        results_canvas = tk.Canvas(results_frame, bg="#f0f2f5", highlightthickness=0)
+        results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        results_scrollbar = tk.Scrollbar(results_frame, orient=tk.VERTICAL, command=results_canvas.yview)
+        results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        results_canvas.configure(yscrollcommand=results_scrollbar.set)
+        results_canvas.bind('<Configure>', lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all")))
+
+        results_interior = tk.Frame(results_canvas, bg="#f0f2f5")
+        results_canvas.create_window((0, 0), window=results_interior, anchor="nw")
+
+        def update_request_status(friendship_id, username, status):
+            connection = self.create_database_connection()
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("UPDATE Friendships SET Status = ? WHERE FriendshipID = ?", (status, friendship_id))
+                    connection.commit()
+                    messagebox.showinfo("Success", f"Friend request {status.lower()}ed for {username}.")
+            finally:
+                connection.close()
+            request_window.destroy()
+            self.accept_friend_request()
+
+        for username, friendship_id in pending_requests:
+            card_frame = tk.Frame(results_interior, bg="#ffffff", relief=tk.RAISED, borderwidth=1)
+            card_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+            user_label = tk.Label(card_frame, text=username, font=("Segoe UI", 14), bg="#ffffff", fg="#3b5998")
+            user_label.pack(side=tk.LEFT, padx=10, pady=10)
+
+            button_frame = tk.Frame(card_frame, bg="#ffffff")
+            button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+            accept_button = tk.Button(button_frame, text="Accept", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                                      command=lambda fid=friendship_id, uname=username: update_request_status(fid,
+                                                                                                              uname,
+                                                                                                              'Accepted'))
+            accept_button.pack(side=tk.LEFT, padx=5)
+
+            reject_button = tk.Button(button_frame, text="Reject", font=("Segoe UI", 12), bg="#ff4d4d", fg="#ffffff",
+                                      command=lambda fid=friendship_id, uname=username: update_request_status(fid,
+                                                                                                              uname,
+                                                                                                              'Rejected'))
+            reject_button.pack(side=tk.LEFT, padx=5)
+
+    def add_friend(self):
+        add_friend_window = tk.Toplevel(self.master)
+        add_friend_window.title("Add Friend")
+        add_friend_window.geometry("550x500")
+        add_friend_window.configure(bg="#f0f2f5")
+
+        title_label = tk.Label(add_friend_window, text="Add Friend", font=("Segoe UI", 18, "bold"), bg="#f0f2f5",
+                               fg="#3b5998")
+        title_label.pack(pady=10)
+
+        search_frame = tk.Frame(add_friend_window, bg="#f0f2f5")
+        search_frame.pack(pady=10)
+
+        search_label = tk.Label(search_frame, text="Search for users:", font=("Segoe UI", 12), bg="#f0f2f5",
+                                fg="#3b5998")
+        search_label.pack(side=tk.LEFT, padx=10)
+
+        search_entry = tk.Entry(search_frame, font=("Segoe UI", 12))
+        search_entry.pack(side=tk.LEFT, padx=10)
+
+        search_button = tk.Button(search_frame, text="Search", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                                  command=lambda: search_users(search_entry.get()))
+        search_button.pack(side=tk.LEFT, padx=10)
+
+        results_frame = tk.Frame(add_friend_window, bg="#f0f2f5")
+        results_frame.pack(pady=10)
+
+        results_canvas = tk.Canvas(results_frame, bg="#f0f2f5", highlightthickness=0)
+        results_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        results_scrollbar = tk.Scrollbar(results_frame, orient=tk.VERTICAL, command=results_canvas.yview)
+        results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        results_canvas.configure(yscrollcommand=results_scrollbar.set)
+        results_canvas.bind('<Configure>', lambda e: results_canvas.configure(scrollregion=results_canvas.bbox("all")))
+
+        results_interior = tk.Frame(results_canvas, bg="#f0f2f5")
+        results_canvas.create_window((0, 0), window=results_interior, anchor="nw")
+
+        def search_users(query):
+            connection = self.create_database_connection()
+            try:
+                with connection.cursor() as cursor:
+                    user_id = self.get_user_id()
+
+                    cursor.execute("""
+                          SELECT Username
+                          FROM [User]
+                          WHERE UserID NOT IN (
+                              SELECT UserID2
+                              FROM Friendships
+                              WHERE UserID1 = ?
+                              UNION
+                              SELECT UserID1
+                              FROM Friendships
+                              WHERE UserID2 = ?
+                          ) AND Username LIKE ?
+                      """, (user_id, user_id, f"%{query}%"))
+                    users = cursor.fetchall()
+            finally:
+                connection.close()
+
+            for widget in results_interior.winfo_children():
+                widget.destroy()
+
+            if users:
+                for user in users:
+                    username = user[0]
+                    user_frame = tk.Frame(results_interior, bg="#ffffff", relief=tk.RAISED, borderwidth=1)
+                    user_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+                    user_label = tk.Label(user_frame, text=username, font=("Segoe UI", 14), bg="#ffffff", fg="#3b5998")
+                    user_label.pack(side=tk.LEFT, padx=10, pady=10)
+
+                    add_button = tk.Button(user_frame, text="Add", font=("Segoe UI", 12), bg="#3b5998", fg="#ffffff",
+                                           command=lambda u=username: send_friend_request(u))
+                    add_button.pack(side=tk.RIGHT, padx=10, pady=10)
+            else:
+                no_results_label = tk.Label(results_interior, text="No users found.", font=("Segoe UI", 14),
+                                            bg="#f0f2f5", fg="#3b5998")
+                no_results_label.pack(pady=10)
+
+        def send_friend_request(friend_username):
+            connection = self.create_database_connection()
+            try:
+                with connection.cursor() as cursor:
+                    friend_id = self.get_user_id_by_username(friend_username)
+                    if friend_id:
+                        cursor.execute("INSERT INTO Friendships (UserID1, UserID2, Status) VALUES (?, ?, 'Pending')",
+                                       (self.get_user_id(), friend_id))
+                        connection.commit()
+                        messagebox.showinfo("Success", f"Friend request sent to {friend_username}.")
+                    else:
+                        messagebox.showerror("Error", f"User '{friend_username}' not found.")
+            finally:
+                connection.close()
+
+            search_entry.delete(0, tk.END)
+            search_users("")
+
+    def get_user_id_by_username(self, username):
+        connection = self.create_database_connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT UserID FROM [User] WHERE Username = ?", (username,))
+                user_id = cursor.fetchone()
+                if user_id:
+                    return user_id[0]
+                else:
+                    return None
+        finally:
+            connection.close()
+
+    def get_user_id(self):
+        connection = self.create_database_connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT UserID FROM [User] WHERE Username = ?", (self.username,))
+                result = cursor.fetchone()
+                if result:
+                    user_id = result[0]
+                    print(f"UserID for '{self.username}': {user_id}")
+                else:
+                    user_id = None
+                    print(f"Username '{self.username}' not found in the Users table.")
+        except pyodbc.Error as e:
+            print(f"Error fetching UserID: {e}")
+            user_id = None
+        finally:
+            connection.close()
+        return user_id
+
+    # def get_user_id(self):
+    #     connection = self.create_database_connection()
+    #     try:
+    #         with connection.cursor() as cursor:
+    #             cursor.execute("SELECT UserID FROM User WHERE Username = ?", (self.username,))
+    #             user_id = cursor.fetchone()
+    #             if user_id:
+    #                 return user_id[0]
+    #             else:
+    #                 raise ValueError(f"No user found with username: {self.username}")
+    #     finally:
+    #         connection.close()
+
     def create_post(self):
         dialog = PostDialog(self, self.username)
         self.wait_window(dialog)
 
         if dialog.post_content:
+            user_id = self.get_user_id()
+            print(f"User ID for creating post: {user_id}")  # Debug print
+
             connection = self.create_database_connection()
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("EXEC GetUserId ?", (self.username,))
-                    user_id = cursor.fetchone()[0]
-                    cursor.execute("EXEC CreatePost ?, ?", (user_id, dialog.post_content))
+                    cursor.execute("EXEC CreatePost @AuthorID = ?, @Content = ?", (user_id, dialog.post_content))
                     connection.commit()
                 self.load_posts()
             finally:

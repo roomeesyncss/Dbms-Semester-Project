@@ -13,7 +13,7 @@ class AdminFeed(tk.Toplevel):
         self.sidebar_frame.pack_forget()  # Initially hide the sidebar
 
     def create_database_connection(self):
-        server_name = 'localhost\\SQLEXPRESS'
+        server_name = 'localhost\\SQLEXPRESS01'
         database_name = 'Facebook'
         trusted_connection = 'yes'
         connection_string = f'DRIVER={{SQL Server}};SERVER={server_name};DATABASE={database_name};Trusted_Connection={trusted_connection};'

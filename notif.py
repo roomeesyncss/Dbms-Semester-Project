@@ -50,23 +50,24 @@ class NotificationsPage(tk.Toplevel):
             self.connection.close()
 
     def mark_as_read(self):
-        selected_indices = self.n_lbox.curselection()
-        if not selected_indices:
-            messagebox.showinfo("No Selection", "Please select a notification to mark as read.")
-            return
-
-        try:
-            with self.connection.cursor() as cursor:
-                for index in selected_indices:
-                    notification_text = self.n_lbox.get(index)
-                    notification_id = self.extr_notid_id(notification_text)
-                    cursor.execute("EXEC MarkNotificationAsRead @NotificationID = ?", (notification_id,))
-                self.connection.commit()
-
-                self.load_notif()
-                messagebox.showinfo("Success", "Selected notifications marked as read.")
-        except pyodbc.Error as e:
-            messagebox.showerror("Database Error", f"Failed to mark notifications as read: {e}")
+        pass
+        # selected_indices = self.n_lbox.curselection()
+        # if not selected_indices:
+        #     messagebox.showinfo("No Selection", "Please select a notification to mark as read.")
+        #     return
+        #
+        # try:
+        #     with self.connection.cursor() as cursor:
+        #         for index in selected_indices:
+        #             notification_text = self.n_lbox.get(index)
+        #             notification_id = self.extr_notid_id(notification_text)
+        #             cursor.execute("EXEC MarkNotificationAsRead @NotificationID = ?", (notification_id,))
+        #         self.connection.commit()
+        #
+        #         self.load_notif()
+        #         messagebox.showinfo("Success", "Selected notifications marked as read.")
+        # except pyodbc.Error as e:
+        #     messagebox.showerror("Database Error", f"Failed to mark notifications as read: {e}")
 
     def extr_notid_id(self, notification_text):
 

@@ -20,7 +20,7 @@ class FacebookMainApp(tk.Tk):
     def log_user(self):
         username = self.username_entry.get()
         password = self.password_entry.get()
-        query = "SELECT UserID, IsAdmin FROM [Users] WHERE Username = ? AND Password = ?"
+        query = "SELECT UserID, IsAdmin FROM [User] WHERE Username = ? AND Password = ?"
         cursor = self.connection.cursor()
         cursor.execute(query, (username, password))
         user = cursor.fetchone()
@@ -84,7 +84,7 @@ class FacebookMainApp(tk.Tk):
         self.username_entry.place(x=880, y=207, height=50)
 
         self.password_entry = tk.Entry(self, width=30, font="Courier", highlightthickness=1, show='*')
-        self.password_entry.insert(0, 'mern')
+        self.password_entry.insert(0, 'Password')
         self.password_entry.place(x=880, y=267, height=50)
 
     def create_buttons(self):

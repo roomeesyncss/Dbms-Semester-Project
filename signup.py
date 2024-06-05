@@ -15,39 +15,38 @@ class SignupPage(tk.Toplevel):
 
         self.db = DatabaseConnection()
         self.connection = self.db.create_connection()
+
     def sign_user(self):
         username = self.username_ent.get()
         password = self.password_e.get()
         email = self.email_entry.get()
-        is_admin = self.is_adminvar.get()
+        is_admin = self.is_adminvar.get()  # 1 if checked, 0 if unchecked
 
         if username and password and email:
             try:
                 cursor = self.connection.cursor()
                 cursor.execute("""
-                    INSERT INTO [Users] (Username, Password, Email, IsAdmin)
+                    INSERT INTO [User] (Username, Password, Email, isAdmin)
                     OUTPUT INSERTED.UserID
                     VALUES (?, ?, ?, ?)
                 """, (username, password, email, is_admin))
                 user_id = cursor.fetchone()[0]
 
-                if is_admin:
-                    cursor.execute("INSERT INTO Admins (UserID, Role) VALUES (?, ?)", (user_id, 'Admin'))
-
                 self.connection.commit()
 
-                tk.messagebox.showinfo("Success", f"Registered Sucessful woho.")
+                tk.messagebox.showinfo("Success", f"Registered successfully.")
                 self.withdraw()
-                query = "SELECT UserID, IsAdmin FROM [User] WHERE Username = ? AND Password = ?"
-                cursor = self.connection.cursor()
-                cursor.execute(query, (username, password))
-                signup_user_feed = UserMFeed(self.parent,username)
+                # No need to check isAdmin or access Admin table since isAdmin is in User table
+                signup_user_feed = UserMFeed(self.parent, username)
                 signup_user_feed.mainloop()
             except pyodbc.Error as e:
-                print(f"Error registering user: {e}")
+                tk.messagebox.showinfo("Error", f"fill all field.")
 
         else:
-            print("Please fill in all fields.")
+            tk.messagebox.showinfo("Error", f"fill all field.")
+
+    # Other methods remain unchanged
+
     def create_widgets(self):
         self.create_labels()
         self.create_entries()
