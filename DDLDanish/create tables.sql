@@ -51,8 +51,8 @@ CREATE TABLE [Like] (
 
 CREATE TABLE Friend (
     FriendID INT PRIMARY KEY IDENTITY(1,1),
-    User1ID INT,
-    User2ID INT,
+    User1ID INT NOT NULL,
+    User2ID INT NOT NULL,
     Status NVARCHAR(20) DEFAULT 'Pending' CHECK (Status IN ('Accepted', 'Rejected', 'Pending')),
     FriendAddedDate DATE,
     CONSTRAINT FK_User1ID FOREIGN KEY (User1ID) REFERENCES [User](UserID),
@@ -61,7 +61,7 @@ CREATE TABLE Friend (
 
 CREATE TABLE Notification (
     NotificationID INT PRIMARY KEY IDENTITY(1,1),
-    UserID INT,
+    UserID INT NOT NULL,
     Content VARCHAR(1000) NOT NULL,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT FK_UserID_Notifications FOREIGN KEY (UserID) REFERENCES [User](UserID)
@@ -69,8 +69,8 @@ CREATE TABLE Notification (
 
 CREATE TABLE Chat (
     ChatID INT PRIMARY KEY IDENTITY(1,1),
-    SenderID INT FOREIGN KEY REFERENCES [User](UserID),
-    ReceiverID INT FOREIGN KEY REFERENCES [User](UserID),
+    SenderID INT FOREIGN KEY REFERENCES [User](UserID) NOT NULL,
+    ReceiverID INT FOREIGN KEY REFERENCES [User](UserID) NOT NULL,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
 );
 
@@ -81,6 +81,27 @@ CREATE TABLE Message (
     Content VARCHAR(2000),
 	CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE [Events] (
+    EventID INT PRIMARY KEY IDENTITY(1,1),
+    EventName NVARCHAR(255) NOT NULL,
+    Description NVARCHAR(MAX),
+    Location NVARCHAR(255),
+    StartTime DATETIME NOT NULL,
+    CreatedBy INT NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (CreatedBy) REFERENCES [User](UserID)
+);
+
+CREATE TABLE EventSubscribers (
+    EventSubscriberID INT PRIMARY KEY IDENTITY(1,1),
+    EventID INT NOT NULL,
+    UserID INT NOT NULL,
+    SubscriptionDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (EventID) REFERENCES Events(EventID),
+    FOREIGN KEY (UserID) REFERENCES [User](UserID)
+);
+
 
 --Remaining
 --CREATE TABLE Page (
@@ -99,3 +120,5 @@ CREATE TABLE Message (
 --    UserID VARCHAR(50) FOREIGN KEY REFERENCES [User](UserID),
 --    Content VARCHAR(1000)
 --);
+
+
