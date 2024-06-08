@@ -372,3 +372,28 @@ BEGIN
     WHERE PostID = @PostID;
 END;
 GO
+
+
+
+
+
+--edit userpost
+
+ALTER PROCEDURE [dbo].[EditUserPost]
+    @PostID INT,
+    @NewContent NVARCHAR(MAX)
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM Post WHERE PostID = @PostID)
+    BEGIN
+        RAISERROR('Error: Post does not exist.', 16, 1);
+        RETURN;
+    END
+
+    UPDATE Post SET Content = @NewContent WHERE PostID = @PostID;
+
+    IF @@ROWCOUNT > 0
+        PRINT 'Post edited successfully.';
+    ELSE
+        RAISERROR('Failed to edit post.', 16, 1);
+END;

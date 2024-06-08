@@ -104,3 +104,17 @@ CREATE TABLE Messages (
 --     UserID VARCHAR(50) FOREIGN KEY REFERENCES [User](UserID),
 --     Content VARCHAR(1000)
 -- );
+
+
+--events
+ALTER TABLE Events
+ADD EventCategoryID INT Unique;
+
+ALTER TABLE Events
+ADD FOREIGN KEY (EventCategoryID) REFERENCES EventCategories(EventCategoryID);
+
+
+CREATE TABLE EventCategories (
+    EventCategoryID INT PRIMARY KEY IDENTITY(1,1),
+    CategoryName NVARCHAR(255) NOT NULL UNIQUE
+);

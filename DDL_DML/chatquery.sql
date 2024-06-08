@@ -38,7 +38,10 @@ BEGIN
     END
 END
 
---send msg for ebtter comm
+
+
+
+
 CREATE PROCEDURE SendMessage
     @ChatID INT,
     @SenderID INT,
