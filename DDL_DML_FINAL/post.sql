@@ -67,26 +67,18 @@ BEGIN
 END;
 
 -- Get all posts
-CREATE PROCEDURE GetAllPosts
-    @UserID INT
+CREATE VIEW GetAllPosts
 AS
-BEGIN
-    SET NOCOUNT ON;
-
-    -- Fetch posts from the user and their mutual friends
-    SELECT
-        [User].Username,
-        Post.Content,
-        Post.CreatedAt,
-        (SELECT COUNT(*) FROM Likes WHERE Likes.PostID = Post.PostID) AS LikeCount,
-        (SELECT COUNT(*) FROM Comments WHERE Comments.PostID = Post.PostID) AS CommentCount,
-        (SELECT COUNT(*) FROM Share WHERE Share.PostID = Post.PostID) AS ShareCount,
-        Post.PostID
-    FROM Post
-    INNER JOIN [User] ON Post.AuthorID = [User].UserID
-
-END;
-
+SELECT
+    p.PostID,
+    p.AuthorID,
+    u.Username AS AuthorUsername,
+    u.FullName AS AuthorFullName,
+    p.Content,
+    p.PageID,
+    p.CreatedAt
+FROM Post p
+INNER JOIN [User] u ON p.AuthorID = u.UserID;
 
 SELECT * FROM GetAllPosts
 
@@ -271,14 +263,14 @@ EXEC DeleteComment @CommentID = 2;
 -- -------- COMMENT QUERIES END -------------
 
 
-ALTER PROCEDURE DeleteUserPost
-    @PostID INT
-AS
-BEGIN
-    DELETE FROM Post
-    WHERE PostID = @PostID;
-END;
-GO
+--ALTER PROCEDURE DeleteUserPost
+--    @PostID INT
+--AS
+--BEGIN
+--    DELETE FROM Post
+--    WHERE PostID = @PostID;
+--END;
+--GO
 
 
 CREATE PROCEDURE DeletePost
@@ -370,6 +362,23 @@ END;
 
 
 
+CREATE PROCEDURE UpdateUserPost
+    @PostID INT,
+    @Content NVARCHAR(MAX)
+AS
+BEGIN
+    UPDATE Posts
+    SET Content = @Content
+    WHERE PostID = @PostID;
+END;
+GO
+
+
+
+
+
+--edit userpost
+
 ALTER PROCEDURE [dbo].[EditUserPost]
     @PostID INT,
     @NewContent NVARCHAR(MAX)
@@ -390,13 +399,13 @@ BEGIN
 END;
 
 
-Alter PROCEDURE GetUserOnlyPosts
+CREATE PROCEDURE GetAllPosts
     @UserID INT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Fetch posts from the user only
+    -- Fetch posts from the user and their mutual friends
     SELECT
         [User].Username,
         Post.Content,
@@ -407,6 +416,6 @@ BEGIN
         Post.PostID
     FROM Post
     INNER JOIN [User] ON Post.AuthorID = [User].UserID
-    WHERE Post.AuthorID = @UserID
-    ORDER BY Post.CreatedAt DESC;
+
 END;
+

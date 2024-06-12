@@ -29,10 +29,10 @@ class NotificationsPage(tk.Toplevel):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.n_lbox.config(yscrollcommand=scrollbar.set)
 
-        # Mark as Read button
-        self.read_button = tk.Button(self, text="Mark as Read", font=('Segoe UI', 12), bg="#3b5998", fg="#ffffff",
-                                     command=self.mark_as_read)
-        self.read_button.pack(pady=10)
+        # # Mark as Read button
+        # self.read_button = tk.Button(self, text="Mark as Read", font=('Segoe UI', 12), bg="#3b5998", fg="#ffffff",
+        #                              command=self.mark_as_read)
+        # self.read_button.pack(pady=10)
 
     def load_notif(self):
         try:
@@ -50,29 +50,34 @@ class NotificationsPage(tk.Toplevel):
             self.connection.close()
 
     def mark_as_read(self):
-        pass
-        # selected_indices = self.n_lbox.curselection()
-        # if not selected_indices:
-        #     messagebox.showinfo("No Selection", "Please select a notification to mark as read.")
-        #     return
-        #
-        # try:
-        #     with self.connection.cursor() as cursor:
-        #         for index in selected_indices:
-        #             notification_text = self.n_lbox.get(index)
-        #             notification_id = self.extr_notid_id(notification_text)
-        #             cursor.execute("EXEC MarkNotificationAsRead @NotificationID = ?", (notification_id,))
-        #         self.connection.commit()
-        #
-        #         self.load_notif()
-        #         messagebox.showinfo("Success", "Selected notifications marked as read.")
-        # except pyodbc.Error as e:
-        #     messagebox.showerror("Database Error", f"Failed to mark notifications as read: {e}")
+        selected_indices = self.n_lbox.curselection()
+        if not selected_indices:
+            messagebox.showinfo("No Selection", "Please select a notification to mark as read.")
+            return
 
-    def extr_notid_id(self, notification_text):
+        try:
+            for index in selected_indices:
+                notification_text = self.n_lbox.get(index)
+                notification_id = self.extract_notification_id(notification_text)
+                if notification_id is not None:
+                    confirmation = messagebox.askyesno("Confirmation",
+                                                       "Do you want to mark this notification as read and delete it?")
+                    if confirmation:
+                        with self.connection.cursor() as cursor:
+                            cursor.execute("DELETE FROM [Notification] WHERE NotificationID = ?", (notification_id,))
+                            cursor.execute("UPDATE [Notification] SET Read = 1 WHERE NotificationID = ?",
+                                           (notification_id,))
+                        self.connection.commit()
 
+            self.load_notif()
+            messagebox.showinfo("Success", "Selected notifications marked as read and deleted.")
+        except pyodbc.Error as e:
+            messagebox.showerror("Database Error", f"Failed to mark notifications as read and delete: {e}")
+
+    def extract_notification_id(self, notification_text):
         start = notification_text.find("(ID: ") + len("(ID: ")
         end = notification_text.find(")", start)
-        return int(notification_text[start:end])
-
-
+        if start != -1 and end != -1:
+            return int(notification_text[start:end])
+        else:
+            return None

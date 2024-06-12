@@ -128,10 +128,12 @@ class UserMessages(tk.Toplevel):
                 chats = cursor.fetchall()
 
                 self.chat_listbox.delete(0, tk.END)
+                self.chat_id_to_username = {}  # Dictionary to map chat_id to other user's username
                 for chat in chats:
                     chat_id, user1, user2 = chat
                     other_user = user1 if user1 != self.username else user2
-                    self.chat_listbox.insert(tk.END, f"{chat_id}: {other_user}")
+                    self.chat_id_to_username[chat_id] = other_user  # Map chat_id to other user's username
+                    self.chat_listbox.insert(tk.END, other_user)  # Insert only the other user's name
         except pyodbc.Error as e:
             messagebox.showerror("Database Error", f"Failed to load chats: {e}")
 
@@ -139,9 +141,14 @@ class UserMessages(tk.Toplevel):
         selection = event.widget.curselection()
         if selection:
             index = selection[0]
-            chat_info = event.widget.get(index)
-            chat_id = int(chat_info.split(":")[0])
-            self.load_messages(chat_id)
+            other_user = event.widget.get(index)  # Get the username of the selected chat
+            chat_id = None
+            for cid, username in self.chat_id_to_username.items():
+                if username == other_user:
+                    chat_id = cid
+                    break
+            if chat_id:
+                self.load_messages(chat_id)
 
     def load_messages(self, chat_id):
         try:
@@ -168,8 +175,13 @@ class UserMessages(tk.Toplevel):
             return
 
         index = selection[0]
-        chat_info = self.chat_listbox.get(index)
-        chat_id = int(chat_info.split(":")[0])
+        other_user = self.chat_listbox.get(index)
+        chat_id = None
+        for cid, username in self.chat_id_to_username.items():
+            if username == other_user:
+                chat_id = cid
+                break
+
         message_content = self.message_entry.get("1.0", tk.END).strip()
 
         if not message_content:
@@ -207,176 +219,3 @@ class UserMessages(tk.Toplevel):
                 self.load_chats()  # Refresh chat list
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start chat: {e}")
-
-
-
-
-# class UserMessages(tk.Toplevel):
-#     def __init__(self, parent, username):
-#         super().__init__(parent)
-#         self.parent = parent
-#         self.username = username
-#         self.title("Messages")
-#         self.geometry("800x600")
-#         self.resizable(False, False)
-#         self.configure(bg="#f0f0f0")
-#
-#         # Fetch user ID
-#         self.user_id = self.get_user_id(self.username)
-#         if not self.user_id:
-#             messagebox.showerror("Error", "Failed to fetch user ID.")
-#             self.destroy()
-#             return
-#
-#         # Create UI elements
-#         self.create_message_widgets()
-#         self.load_messages()
-#
-#     def create_database_connection(self):
-#         server_name = 'localhost\\SQLEXPRESS01'
-#         database_name = 'SocialMedia'
-#         trusted_connection = 'yes'
-#         connection_string = f'DRIVER={{SQL Server}};SERVER={server_name};DATABASE={database_name};Trusted_Connection={trusted_connection};'
-#         return pyodbc.connect(connection_string)
-#
-#     def get_user_id(self, username):
-#         connection = self.create_database_connection()
-#         try:
-#             with connection.cursor() as cursor:
-#                 cursor.execute("SELECT UserID FROM Users WHERE Username = ?", (username,))
-#                 result = cursor.fetchone()
-#                 return result[0] if result else None
-#         finally:
-#             connection.close()
-#
-#     def create_message_widgets(self):
-#         # Main frame for messages
-#         self.message_frame = tk.Frame(self, bg="#f0f0f0")
-#         self.message_frame.pack(fill="both", expand=True, padx=10, pady=10)
-#
-#         # Listbox with scrollbar for message display
-#         self.message_list = ScrolledText(self.message_frame, height=20, state='disabled', wrap='word', font=("Arial", 12))
-#         self.message_list.pack(fill="both", expand=True, padx=10, pady=10)
-#
-#         # Frame for new message entry
-#         self.new_message_frame = tk.Frame(self, bg="#f0f0f0")
-#         self.new_message_frame.pack(fill="x", padx=10, pady=10)
-#
-#         tk.Label(self.new_message_frame, text="Send To:", bg="#f0f0f0", font=("Arial", 12)).grid(row=0, column=0, sticky="w")
-#         self.receiver_entry = ttk.Entry(self.new_message_frame, font=("Arial", 12))
-#         self.receiver_entry.grid(row=0, column=1, sticky="ew", padx=5)
-#
-#         tk.Label(self.new_message_frame, text="Message:", bg="#f0f0f0", font=("Arial", 12)).grid(row=1, column=0, sticky="nw")
-#         self.message_entry = ScrolledText(self.new_message_frame, height=5, width=50, font=("Arial", 12))
-#         self.message_entry.grid(row=1, column=1, padx=5, pady=5)
-#
-#         send_button = ttk.Button(self.new_message_frame, text="Send", command=self.send_message, style="Custom.TButton")
-#         send_button.grid(row=2, column=0, columnspan=2, pady=10)
-#
-#         # Adding reply and delete buttons
-#         self.reply_button = ttk.Button(self.message_frame, text="Reply", command=self.reply_message, style="Custom.TButton")
-#         self.reply_button.pack(side="left", padx=5)
-#
-#         self.delete_button = ttk.Button(self.message_frame, text="Delete", command=self.delete_message, style="Custom.TButton")
-#         self.delete_button.pack(side="left", padx=5)
-#
-#     def load_messages(self):
-#         connection = self.create_database_connection()
-#         if connection:
-#             try:
-#                 with connection.cursor() as cursor:
-#                     cursor.execute("""
-#                         SELECT m.MessageID, u.Username, m.Content, m.Timestamp, m.Read
-#                         FROM Messages m
-#                         JOIN Users u ON m.SenderID = u.UserID
-#                         WHERE m.ReceiverID = ?
-#                         ORDER BY m.Timestamp DESC
-#                     """, (self.user_id,))
-#                     messages = cursor.fetchall()
-#
-#                     self.message_list.config(state='normal')
-#                     self.message_list.delete('1.0', tk.END)
-#
-#                     self.messages = []  # Store message info
-#                     for message in messages:
-#                         message_id, sender, content, timestamp, read_status = message
-#                         self.message_list.insert(tk.END, f"{sender} ({timestamp}) [{'Read' if read_status else 'Unread'}]:\n{content}\n\n")
-#                         self.messages.append((message_id, sender, content, timestamp, read_status))
-#
-#                     self.message_list.config(state='disabled')
-#             except pyodbc.Error as e:
-#                 messagebox.showerror("Database Error", f"Failed to load messages: {e}")
-#             finally:
-#                 connection.close()
-#
-#     def send_message(self):
-#         receiver_username = self.receiver_entry.get()
-#         message_content = self.message_entry.get("1.0", tk.END).strip()
-#
-#         if not receiver_username or not message_content:
-#             messagebox.showerror("Error", "Receiver and message content cannot be empty.")
-#             return
-#
-#         receiver_id = self.get_user_id(receiver_username)
-#         if not receiver_id:
-#             messagebox.showerror("Error", "Receiver does not exist.")
-#             return
-#
-#         connection = self.create_database_connection()
-#         try:
-#             with connection.cursor() as cursor:
-#                 cursor.execute("""
-#                     INSERT INTO Messages (SenderID, ReceiverID, Content)
-#                     VALUES (?, ?, ?)
-#                 """, (self.user_id, receiver_id, message_content))
-#                 connection.commit()
-#                 messagebox.showinfo("Success", "Message sent successfully.")
-#                 self.message_entry.delete("1.0", tk.END)
-#                 self.load_messages()  # Refresh messages
-#         except Exception as e:
-#             messagebox.showerror("Error", f"Failed to send message: {e}")
-#         finally:
-#             connection.close()
-#
-#     def reply_message(self):
-#         selected_text = self.message_list.selection_get()
-#         if not selected_text:
-#             messagebox.showerror("Error", "No message selected for reply.")
-#             return
-#
-#         sender = selected_text.split(' ')[0]
-#         self.receiver_entry.delete(0, tk.END)
-#         self.receiver_entry.insert(0, sender)
-#         self.message_entry.focus()
-#
-#     def delete_message(self):
-#         try:
-#             selected_text = self.message_list.selection_get()
-#             if not selected_text:
-#                 messagebox.showerror("Error", "No message selected for deletion.")
-#                 return
-#
-#             # Extract message_id from the stored message info
-#             for message in self.messages:
-#                 message_id, sender, content, timestamp, read_status = message
-#                 if sender in selected_text and content in selected_text:
-#                     connection = self.create_database_connection()
-#                     with connection.cursor() as cursor:
-#                         cursor.execute("DELETE FROM Messages WHERE MessageID = ?", (message_id,))
-#                         connection.commit()
-#                         messagebox.showinfo("Success", "Message deleted successfully.")
-#                         self.load_messages()  # Refresh messages
-#                     break
-#         except Exception as e:
-#             messagebox.showerror("Error", f"Failed to delete message: {e}")
-#
-#     def mark_as_read(self, message_id):
-#         connection = self.create_database_connection()
-#         try:
-#             with connection.cursor() as cursor:
-#                 cursor.execute("UPDATE Messages SET Read = 1 WHERE MessageID = ?", (message_id,))
-#                 connection.commit()
-#         except Exception as e:
-#             messagebox.showerror("Error", f"Failed to mark message as read: {e}")
-#         finally:
-#             connection.close()

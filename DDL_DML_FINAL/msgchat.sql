@@ -1,5 +1,3 @@
-
-
 Alter PROCEDURE GetChats
     @UserID INT
 AS
@@ -40,7 +38,10 @@ BEGIN
     END
 END
 
---send msg for ebtter comm
+
+
+
+
 CREATE PROCEDURE SendMessage
     @ChatID INT,
     @SenderID INT,
@@ -50,3 +51,10 @@ BEGIN
     INSERT INTO Messages (ChatID, SenderID, Content)
     VALUES (@ChatID, @SenderID, @Content);
 END
+
+
+EXEC GetChats @UserID = 1;
+EXEC GetMessages @ChatID = 1;
+EXEC SendMessage @ChatID = 1, @SenderID = 1, @Content = 'Hi Bob, what’s up?';
+EXEC StartNewChat @User1ID = 1, @User2ID = 4;
+

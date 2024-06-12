@@ -14,8 +14,8 @@ CREATE TABLE Friendships (
     UserID1 INT NOT NULL,
     UserID2 INT NOT NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Accepted', 'Rejected')),
-    FOREIGN KEY (UserID1) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION,
-    FOREIGN KEY (UserID2) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION
+    FOREIGN KEY (UserID1) REFERENCES [User](UserID),
+    FOREIGN KEY (UserID2) REFERENCES [User](UserID)
 );
 
 CREATE TABLE Post (
@@ -25,8 +25,7 @@ CREATE TABLE Post (
     PageID INT NULL,
 	CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (AuthorID) REFERENCES [User](UserID),
-    --FOREIGN KEY (PageID) REFERENCES Pages(PageID)
-	--CONSTRAINT FK_PageID_Post FOREIGN KEY (PageID) REFERENCES Pages(PageID) ON DELETE CASCADE
+
 );
 
 CREATE TABLE Comments (
@@ -63,11 +62,11 @@ CREATE TABLE Friendships (
     UserID1 INT NOT NULL,
     UserID2 INT NOT NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Accepted', 'Rejected')),
-    FOREIGN KEY (UserID1) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION,
-    FOREIGN KEY (UserID2) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION
+    FOREIGN KEY (UserID1) REFERENCES [Users](UserID) ,
+    FOREIGN KEY (UserID2) REFERENCES [Users](UserID)
 );
 
-CREATE TABLE Notifications (
+CREATE TABLE Notification (
     NotificationID INT PRIMARY KEY IDENTITY(1,1),
     UserID INT,
     Content VARCHAR(1000) NOT NULL,
@@ -80,9 +79,8 @@ CREATE TABLE Chats (
     User1ID INT NOT NULL,
     User2ID INT NOT NULL,
     CreatedAt DATETIME DEFAULT GETDATE(),
-    FOREIGN KEY (User1ID) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION,
-    FOREIGN KEY (User2ID) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION
-);
+    FOREIGN KEY (User1ID) REFERENCES [User](UserID) ,
+    FOREIGN KEY (User2ID) REFERENCES [User](UserID)
 
 CREATE TABLE Messages (
     MessageID INT PRIMARY KEY IDENTITY(1,1),
@@ -90,8 +88,8 @@ CREATE TABLE Messages (
     SenderID INT NOT NULL,
     Content VARCHAR(1000) NOT NULL,
     Timestamp DATETIME DEFAULT GETDATE(),
-    FOREIGN KEY (ChatID) REFERENCES Chats(ChatID) ON DELETE NO ACTION ON UPDATE NO ACTION,
-    FOREIGN KEY (SenderID) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION
+    FOREIGN KEY (ChatID) REFERENCES Chats(ChatID) ,
+    FOREIGN KEY (SenderID) REFERENCES [User](UserID)
 );
 
 
@@ -120,13 +118,13 @@ CREATE TABLE Report (
     ReportDescription NVARCHAR(MAX),
     ReportDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ReportedBy) REFERENCES [User](UserID),
-    FOREIGN KEY (ReportedPostID) REFERENCES Post(PostID), -- assuming Posts table has a PostID
+    FOREIGN KEY (ReportedPostID) REFERENCES Post(PostID),
     FOREIGN KEY (ReportReasonID) REFERENCES ReportReasons(ReportReasonID)
 
 
 
 
-ADD FOREIGN KEY (EventCategoryID) REFERENCES EventCategories(EventCategoryID);
+
 CREATE TABLE [Events] (
     EventID INT PRIMARY KEY IDENTITY(1,1),
     EventName NVARCHAR(255) NOT NULL,
@@ -135,7 +133,8 @@ CREATE TABLE [Events] (
     StartTime DATETIME NOT NULL,
     CreatedBy INT NOT NULL,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (CreatedBy) REFERENCES [User](UserID)
+    FOREIGN KEY (CreatedBy) REFERENCES [User](UserID),
+    FOREIGN KEY (EventCategoryID) REFERENCES EventCategories(EventCategoryID);
 );
 
 CREATE TABLE EventCategories (
@@ -155,14 +154,12 @@ CREATE TABLE EventSubscribers (
 
 
 
--- Table to store pages
 CREATE TABLE Pages (
     PageID INT IDENTITY(1,1) PRIMARY KEY,
     Title NVARCHAR(255) NOT NULL,
     Description NVARCHAR(MAX),
     CreatedBy INT NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
-    UpdatedAt DATETIME NULL,
     IsActive BIT NOT NULL DEFAULT 1,
     CONSTRAINT FK_Pages_Users FOREIGN KEY (CreatedBy) REFERENCES [User](UserID)
 );
@@ -181,18 +178,17 @@ CREATE TABLE PageMembers (
     RoleID INT NOT NULL,
     AddedBy INT NOT NULL,
     AddedAt DATETIME NOT NULL DEFAULT GETDATE(),
-    CONSTRAINT FK_PageMembers_Pages FOREIGN KEY (PageID) REFERENCES Pages(PageID) ON DELETE CASCADE,
+    CONSTRAINT FK_PageMembers_Pages FOREIGN KEY (PageID) REFERENCES Pages(PageID),
     CONSTRAINT FK_PageMembers_Roles FOREIGN KEY (RoleID) REFERENCES Roles(RoleID),
     CONSTRAINT FK_PageMembers_Users FOREIGN KEY (UserID) REFERENCES [User](UserID),
     CONSTRAINT FK_PageMembers_AddedBy FOREIGN KEY (AddedBy) REFERENCES [User](UserID)
 );
-
 CREATE TABLE Settings (
     SettingID INT PRIMARY KEY IDENTITY(1,1),
     UserID INT NOT NULL,
     NotificationPreference BIT DEFAULT 1,
-    PrivacyLevel NVARCHAR(50) DEFAULT 'Public',  --
-    Theme NVARCHAR(50) DEFAULT 'Light',  --
-    Language NVARCHAR(50) DEFAULT 'English',  -
-    FOREIGN KEY (UserID) REFERENCES [Users](UserID) ON DELETE NO ACTION ON UPDATE NO ACTION
+    PrivacyLevel NVARCHAR(50) DEFAULT 'Public',
+    Theme NVARCHAR(50) DEFAULT 'Light',
+    Language NVARCHAR(50) DEFAULT 'English',
+    FOREIGN KEY (UserID) REFERENCES [User](UserID)
 );
